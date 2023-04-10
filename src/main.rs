@@ -21,14 +21,15 @@ fn main() {
     let stop_sent = Arc::new(AtomicBool::new(false));
     let server_arc = Arc::new(Mutex::new(server));
 
-    let stop_requested_handler = stop_requested.clone();
+    let stop_requested_clone = stop_requested.clone();
+    let stop_requested_clone_2 = stop_requested.clone();
     let stop_sent_clone = stop_sent.clone();
     let server_arc_clone = server_arc.clone();
 
     // Handle SIGTERM signal to stop server gracefully
     ctrlc::set_handler(move || {
         println!("[WRAPPER INFO]: SIGTERM received ! Handling the stop request…");
-        stop_requested_handler.store(true, Ordering::SeqCst);
+        stop_requested_clone.store(true, Ordering::SeqCst);
     })
     .expect("Failed to register SIGTERM handler");
 
@@ -40,7 +41,7 @@ fn main() {
                 Ok(n) => {
                     let stdout_str = std::str::from_utf8(&buffer[..n]).unwrap();
                     print!("{}", stdout_str);
-                    if stdout_str.contains("Restarting automatically") {
+                    if stdout_str.contains("Restarting automatically") && stop_requested_clone_2.load(Ordering::SeqCst){
                         // Send a SIGINT signal to avoid server restart
                         println!("[WRAPPER INFO]: Server waiting for automatic restart, sending SIGINT to avoid it…");
                         server_arc_clone.lock().unwrap().kill().expect("Failed to send SIGINT signal to server");
